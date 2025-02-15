@@ -68,14 +68,15 @@ The script will automatically check for and install the following required packa
 
 ## 🛠️ Usage
 
-1. Clone or download this repository
-2. Place your BIOS files in the `BIOS` directory
-3. Place your ROM sets in the `sets` directory following the structure above
-4. Make the script executable:
+1. Insert your SD card into your PC
+2. Clone or download this repository
+3. Place your BIOS files in the `BIOS` directory
+4. Place your ROM sets in the `sets` directory following the structure above
+5. Make the script executable:
    ```bash
    chmod +x miyoo-onionos-setup.sh
    ```
-5. Run the script:
+6. Run the script:
    ```bash
    ./miyoo-onionos-setup.sh
    ```
