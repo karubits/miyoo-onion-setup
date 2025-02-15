@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
+# Color definitions
 RED='\033[0;31m'
 GRN='\033[0;32m'
 YEL='\033[0;33m'
 BLU='\033[0;34m'
 CYN='\033[0;36m'
+MAG='\033[0;35m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
@@ -15,25 +17,145 @@ ONION_PATH=""
 LOGOTWEAK_PATH=""
 BIOS_PATH="./BIOS"
 SETS_DIR="./sets"
+DEBUG_MODE=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --debug)
+            DEBUG_MODE=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Debug logging function
+debug_log() {
+    if [ "$DEBUG_MODE" = true ]; then
+        echo -e "${MAG}[DEBUG] $1${RESET}"
+    fi
+}
+
+# Enhanced rsync with debug mode
+enhanced_rsync() {
+    local src="$1"
+    local dst="$2"
+    local flags="$3"
+    
+    if [ "$DEBUG_MODE" = true ]; then
+        debug_log "Running rsync with:"
+        debug_log "Source: $src"
+        debug_log "Destination: $dst"
+        debug_log "Flags: $flags"
+        rsync $flags -v --stats "$src" "$dst"
+    else
+        rsync $flags --info=progress2 "$src" "$dst"
+    fi
+}
+
+# Enhanced wget with debug mode
+enhanced_wget() {
+    local url="$1"
+    local output="$2"
+    
+    if [ "$DEBUG_MODE" = true ]; then
+        debug_log "Downloading from: $url"
+        debug_log "Output file: $output"
+        wget --debug -O "$output" "$url"
+    else
+        wget -q --show-progress -O "$output" "$url"
+    fi
+}
+
+# Enhanced unzip with debug mode
+enhanced_unzip() {
+    local zipfile="$1"
+    local dest="$2"
+    
+    if [ "$DEBUG_MODE" = true ]; then
+        debug_log "Extracting: $zipfile"
+        debug_log "Destination: $dest"
+        unzip -v "$zipfile" -d "$dest"
+    else
+        unzip -q -o "$zipfile" -d "$dest"
+    fi
+}
+
+# Formatting functions
+print_header() {
+    local text="$1"
+    echo -e "\n${BOLD}${MAG}════════════════════════════════════════════════════════════════════${RESET}"
+    echo -e "${BOLD}${BLU}   $text${RESET}"
+    echo -e "${BOLD}${MAG}════════════════════════════════════════════════════════════════════${RESET}\n"
+}
+
+print_step() {
+    local text="$1"
+    echo -e "\n${BOLD}${CYN}→ $text${RESET}\n"
+}
+
+print_success() {
+    local text="$1"
+    echo -e "${GRN}✓ $text${RESET}"
+}
+
+print_warning() {
+    local text="$1"
+    echo -e "${YEL}⚠ $text${RESET}"
+}
+
+print_error() {
+    local text="$1"
+    echo -e "${RED}✗ $text${RESET}"
+}
+
+print_info() {
+    local text="$1"
+    echo -e "${BLU}ℹ $text${RESET}"
+}
+
+print_banner() {
+    echo -e "${CYN}${BOLD}"
+    cat << "EOF"
+ __  __ _         
+|  \/  (_)_   _  ___   ___ 
+| |\/| | | | | |/ _ \ / _ \ 
+| |  | | | |_| | (_) | (_) | +
+|_|  |_|_|\__, |\___/ \___/
+          |___/                    
+     ___        _            ___  ____
+    / _ \ _ __ (_) ___  _ _ / _ \/ ___|
+   | | | | '_ \| |/ _ \| | | | | \___ \
+   | |_| | | | | | (_) | | | |_| |___) |
+    \___/|_| |_|_|\___/|_|  \___/|____/
+EOF
+    echo -e "                    Setup Script v1.0${RESET}\n"
+}
 
 check_onion_version() {
+    print_header "Checking OnionOS Version"
+    
     # Get latest release version from GitHub
-    echo -e "${CYN}Checking latest OnionOS version from GitHub...${RESET}"
+    print_step "Checking GitHub for latest version"
     LATEST_VERSION=$(curl -s "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | grep -o '"tag_name": ".*"' | cut -d'"' -f4)
     
     if [ -z "$LATEST_VERSION" ]; then
-        echo -e "${RED}Failed to fetch latest version from GitHub${RESET}"
+        print_error "Failed to fetch latest version from GitHub"
         return 1
     fi
     
-    echo -e "${CYN}Latest version on GitHub: ${BOLD}$LATEST_VERSION${RESET}"
+    print_info "Latest version on GitHub: ${BOLD}$LATEST_VERSION${RESET}"
     
     # Find all Onion directories
     local ONION_DIRS=(Onion-v*)
     
     if [ ${#ONION_DIRS[@]} -eq 0 ] || [ ! -d "${ONION_DIRS[0]}" ]; then
-        echo -e "${YEL}No local OnionOS installation found${RESET}"
-        echo -e "${CYN}Downloading latest version ($LATEST_VERSION)...${RESET}"
+        print_warning "No local OnionOS installation found"
+        print_step "Downloading latest version ($LATEST_VERSION)"
         download_onion_version "$LATEST_VERSION"
         return
     fi
@@ -53,20 +175,20 @@ check_onion_version() {
     done
     
     if [ -n "$LATEST_LOCAL" ]; then
-        echo -e "${CYN}Latest local version: ${BOLD}$LATEST_LOCAL${RESET}"
+        print_info "Latest local version: ${BOLD}$LATEST_LOCAL${RESET}"
         
         # Compare versions
         if version_gt "${LATEST_VERSION#v}" "$LATEST_LOCAL"; then
-            echo -e "${YEL}A newer version is available${RESET}"
-            echo -e "${CYN}Downloading version $LATEST_VERSION...${RESET}"
+            print_warning "A newer version is available"
+            print_step "Downloading version $LATEST_VERSION"
             download_onion_version "$LATEST_VERSION"
         else
-            echo -e "${GRN}Local version is up to date${RESET}"
+            print_success "Local version is up to date"
             ONION_PATH="./$LATEST_LOCAL_DIR"
         fi
     else
-        echo -e "${YEL}No valid local version found${RESET}"
-        echo -e "${CYN}Downloading latest version ($LATEST_VERSION)...${RESET}"
+        print_warning "No valid local version found"
+        print_step "Downloading latest version ($LATEST_VERSION)"
         download_onion_version "$LATEST_VERSION"
     fi
 }
@@ -82,23 +204,23 @@ download_onion_version() {
     local download_url=$(curl -s "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | grep "browser_download_url.*Onion-v.*\.zip" | cut -d'"' -f4)
     
     if [ -z "$download_url" ]; then
-        echo -e "${RED}Failed to get download URL${RESET}"
+        print_error "Failed to get download URL"
         return 1
     fi
     
     local temp_file="onion_temp.zip"
     
     # Download the file
-    if ! wget -q --show-progress -O "$temp_file" "$download_url"; then
-        echo -e "${RED}Failed to download OnionOS${RESET}"
+    if ! enhanced_wget "$download_url" "$temp_file"; then
+        print_error "Failed to download OnionOS"
         rm -f "$temp_file"
         return 1
     fi
     
     # Extract the file
-    echo -e "${CYN}Extracting OnionOS...${RESET}"
-    if ! unzip -q -o "$temp_file"; then
-        echo -e "${RED}Failed to extract OnionOS${RESET}"
+    print_info "Extracting OnionOS..."
+    if ! enhanced_unzip "$temp_file" "./"; then
+        print_error "Failed to extract OnionOS"
         rm -f "$temp_file"
         return 1
     fi
@@ -109,21 +231,23 @@ download_onion_version() {
     # Set the ONION_PATH to the newly downloaded version
     ONION_PATH="./Onion-${version}"
     
-    echo -e "${GRN}Successfully downloaded and extracted OnionOS version $version${RESET}"
+    print_success "Successfully downloaded and extracted OnionOS version $version"
 }
 
 check_and_install_easy_logo_tweak() {
     local mount_point="$1"
     
-    echo -e "${CYN}Checking latest Easy Logo Tweak version from GitHub...${RESET}"
+    print_header "Installing Easy Logo Tweak"
+    
+    print_step "Checking GitHub for latest version"
     LATEST_VERSION=$(curl -s "https://api.github.com/repos/$LOGOTWEAK_REPO/releases/latest" | grep -o '"tag_name": ".*"' | cut -d'"' -f4)
     
     if [ -z "$LATEST_VERSION" ]; then
-        echo -e "${RED}Failed to fetch latest Easy Logo Tweak version from GitHub${RESET}"
+        print_error "Failed to fetch latest Easy Logo Tweak version from GitHub"
         return 1
     fi
     
-    echo -e "${CYN}Latest version on GitHub: ${BOLD}$LATEST_VERSION${RESET}"
+    print_info "Latest version on GitHub: ${BOLD}$LATEST_VERSION${RESET}"
     
     # Find local Easy Logo Tweak directory
     local LOGOTWEAK_DIRS=(Easy-LogoTweak_v*)
@@ -144,24 +268,24 @@ check_and_install_easy_logo_tweak() {
     
     local should_download=true
     if [ -n "$LATEST_LOCAL" ]; then
-        echo -e "${CYN}Latest local version: ${BOLD}$LATEST_LOCAL${RESET}"
+        print_info "Latest local version: ${BOLD}$LATEST_LOCAL${RESET}"
         if ! version_gt "${LATEST_VERSION#v}" "$LATEST_LOCAL"; then
-            echo -e "${GRN}Local Easy Logo Tweak version is up to date${RESET}"
+            print_success "Local Easy Logo Tweak version is up to date"
             should_download=false
             LOGOTWEAK_PATH="./$LATEST_LOCAL_DIR"
         else
-            echo -e "${YEL}A newer version of Easy Logo Tweak is available${RESET}"
+            print_warning "A newer version of Easy Logo Tweak is available"
         fi
     else
-        echo -e "${YEL}No local Easy Logo Tweak installation found${RESET}"
+        print_warning "No local Easy Logo Tweak installation found"
     fi
     
     if [ "$should_download" = true ]; then
-        echo -e "${CYN}Downloading Easy Logo Tweak version $LATEST_VERSION...${RESET}"
+        print_step "Downloading version $LATEST_VERSION"
         local download_url=$(curl -s "https://api.github.com/repos/$LOGOTWEAK_REPO/releases/latest" | grep "browser_download_url.*\.zip" | cut -d'"' -f4)
         
         if [ -z "$download_url" ]; then
-            echo -e "${RED}Failed to get Easy Logo Tweak download URL${RESET}"
+            print_error "Failed to get Easy Logo Tweak download URL"
             return 1
         fi
         
@@ -172,17 +296,17 @@ check_and_install_easy_logo_tweak() {
         mkdir -p "$LOGOTWEAK_PATH"
         
         # Download the file
-        if ! wget -q --show-progress -O "$temp_file" "$download_url"; then
-            echo -e "${RED}Failed to download Easy Logo Tweak${RESET}"
+        if ! enhanced_wget "$download_url" "$temp_file"; then
+            print_error "Failed to download Easy Logo Tweak"
             rm -f "$temp_file"
             rm -rf "$LOGOTWEAK_PATH"
             return 1
         fi
         
         # Extract the file into the version directory
-        echo -e "${CYN}Extracting Easy Logo Tweak...${RESET}"
-        if ! unzip -q -o "$temp_file" -d "$LOGOTWEAK_PATH"; then
-            echo -e "${RED}Failed to extract Easy Logo Tweak${RESET}"
+        print_info "Extracting Easy Logo Tweak..."
+        if ! enhanced_unzip "$temp_file" "$LOGOTWEAK_PATH"; then
+            print_error "Failed to extract Easy Logo Tweak"
             rm -f "$temp_file"
             rm -rf "$LOGOTWEAK_PATH"
             return 1
@@ -194,118 +318,90 @@ check_and_install_easy_logo_tweak() {
     
     # Copy App directory to SD card
     if [ -d "$LOGOTWEAK_PATH/App" ]; then
-        echo -e "${CYN}Installing Easy Logo Tweak to SD card...${RESET}"
-        rsync -a --info=progress2 "$LOGOTWEAK_PATH/App/" "$mount_point/App/"
-        echo -e "${GRN}Easy Logo Tweak installation complete!${RESET}"
+        print_step "Installing to SD card"
+        enhanced_rsync "$LOGOTWEAK_PATH/App/" "$mount_point/App/" "-a"
+        print_success "Easy Logo Tweak installation complete!"
     else
-        echo -e "${RED}Could not find App directory in Easy Logo Tweak package${RESET}"
+        print_error "Could not find App directory in Easy Logo Tweak package"
         return 1
     fi
 }
 
 check_and_install_prerequisites() {
-  echo -e "${CYN}Checking prerequisites...${RESET}"
-  
-  # Detect package manager
-  if command -v apt &>/dev/null; then
-    PKG_MANAGER="apt"
-    INSTALL_CMD="apt-get install -y"
-    UPDATE_CMD="apt-get update"
-  elif command -v dnf &>/dev/null; then
-    PKG_MANAGER="dnf"
-    INSTALL_CMD="dnf install -y"
-    UPDATE_CMD="dnf check-update"
-  elif command -v pacman &>/dev/null; then
-    PKG_MANAGER="pacman"
-    INSTALL_CMD="pacman -S --noconfirm"
-    UPDATE_CMD="pacman -Sy"
-  else
-    echo -e "${RED}No supported package manager found (apt, dnf, or pacman)${RESET}"
-    echo -e "${YEL}Please install the following packages manually:${RESET}"
-    echo -e "- rsync\n- wget\n- curl\n- parted\n- udisks2"
-    exit 1
-  fi
-  
-  # Check sudo access
-  if ! sudo -v; then
-    echo -e "${RED}Sudo access is required to install missing packages${RESET}"
-    exit 1
-  fi
-  
-  local MISSING_PKGS=()
-  
-  # Check for required packages
-  if ! command -v rsync &>/dev/null; then
-    MISSING_PKGS+=("rsync")
-  fi
-  
-  if ! command -v wget &>/dev/null; then
-    MISSING_PKGS+=("wget")
-  fi
-  
-  if ! command -v curl &>/dev/null; then
-    MISSING_PKGS+=("curl")
-  fi
-  
-  if ! command -v parted &>/dev/null; then
-    MISSING_PKGS+=("parted")
-  fi
-  
-  if ! command -v udisksctl &>/dev/null; then
-    case $PKG_MANAGER in
-      "apt")
-        MISSING_PKGS+=("udisks2")
-        ;;
-      "dnf")
-        MISSING_PKGS+=("udisks2")
-        ;;
-      "pacman")
-        MISSING_PKGS+=("udisks2")
-        ;;
-    esac
-  fi
-  
-  # Install missing packages if any
-  if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
-    echo -e "${YEL}The following packages need to be installed:${RESET}"
-    printf '%s\n' "${MISSING_PKGS[@]}"
+    print_header "Checking Prerequisites"
     
-    echo -e "${CYN}Updating package lists...${RESET}"
-    if ! sudo $UPDATE_CMD; then
-      echo -e "${RED}Failed to update package lists${RESET}"
-      exit 1
+    # Detect package manager
+    if command -v apt &>/dev/null; then
+        PKG_MANAGER="apt"
+        INSTALL_CMD="apt-get install -y"
+        UPDATE_CMD="apt-get update"
+    elif command -v dnf &>/dev/null; then
+        PKG_MANAGER="dnf"
+        INSTALL_CMD="dnf install -y"
+        UPDATE_CMD="dnf check-update"
+    elif command -v pacman &>/dev/null; then
+        PKG_MANAGER="pacman"
+        INSTALL_CMD="pacman -S --noconfirm"
+        UPDATE_CMD="pacman -Sy"
+    else
+        print_error "No supported package manager found (apt, dnf, or pacman)"
+        print_warning "Please install the following packages manually:"
+        echo -e "- rsync\n- wget\n- curl\n- parted\n- udisks2"
+        exit 1
     fi
     
-    echo -e "${CYN}Installing missing packages...${RESET}"
-    if ! sudo $INSTALL_CMD "${MISSING_PKGS[@]}"; then
-      echo -e "${RED}Failed to install one or more packages${RESET}"
-      exit 1
+    # Check sudo access
+    if ! sudo -v; then
+        print_error "Sudo access is required to install missing packages"
+        exit 1
     fi
     
-    echo -e "${GRN}Successfully installed all required packages${RESET}"
-  else
-    echo -e "${GRN}All required packages are already installed${RESET}"
-  fi
+    local MISSING_PKGS=()
+    
+    # Check for required packages
+    print_step "Checking required packages"
+    for pkg in rsync wget curl parted; do
+        if ! command -v $pkg &>/dev/null; then
+            MISSING_PKGS+=("$pkg")
+            print_warning "$pkg not found"
+        else
+            print_success "$pkg found"
+        fi
+    done
+    
+    if ! command -v udisksctl &>/dev/null; then
+        MISSING_PKGS+=("udisks2")
+        print_warning "udisks2 not found"
+    else
+        print_success "udisks2 found"
+    fi
+    
+    # Install missing packages if any
+    if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
+        print_step "Installing missing packages"
+        printf '%s\n' "${MISSING_PKGS[@]}" | sed 's/^/  - /'
+        
+        print_info "Updating package lists..."
+        if ! sudo $UPDATE_CMD; then
+            print_error "Failed to update package lists"
+            exit 1
+        fi
+        
+        print_info "Installing packages..."
+        if ! sudo $INSTALL_CMD "${MISSING_PKGS[@]}"; then
+            print_error "Failed to install one or more packages"
+            exit 1
+        fi
+        
+        print_success "Successfully installed all required packages"
+    else
+        print_success "All required packages are already installed"
+    fi
 }
 
 check_and_install_prerequisites
 
-echo -e "${CYN}${BOLD}"
-cat << "EOF"
- __  __ _         
-|  \/  (_)_   _  ___   ___ 
-| |\/| | | | | |/ _ \ / _ \ 
-| |  | | | |_| | (_) | (_) | +
-|_|  |_|_|\__, |\___/ \___/
-          |___/                    
-     ___        _            ___  ____
-    / _ \ _ __ (_) ___  _ _ / _ \/ ___|
-   | | | | '_ \| |/ _ \| | | | | \___ \
-   | |_| | | | | | (_) | | | |_| |___) |
-    \___/|_| |_|_|\___/|_|  \___/|____/
-EOF
-echo -e "                    Setup Script v1.0${RESET}\n"
-
+print_banner
 
 if [ ! -d "$BIOS_PATH" ]; then
   echo -e "${YEL}No BIOS folder found; skipping BIOS merge step.${RESET}"
@@ -407,7 +503,7 @@ if [ -d "$ONION_PATH" ]; then
     mkdir -p "$MOUNT_POINT/Roms" "$MOUNT_POINT/Emu" "$MOUNT_POINT/BIOS" "$MOUNT_POINT/App"
     
     echo -e "${CYN}Installing OnionOS...${RESET}"
-    rsync -a --info=progress2 "$ONION_PATH"/ "$MOUNT_POINT"/
+    enhanced_rsync "$ONION_PATH/" "$MOUNT_POINT/" "-a"
     
     echo -e "\n${GRN}OnionOS installation complete!${RESET}"
     echo -e "${YEL}Please follow these steps:${RESET}"
@@ -460,7 +556,7 @@ if [ -d "$BIOS_PATH" ]; then
       exit 1
     fi
     echo -e "${CYN}Copying BIOS files...${RESET}"
-    rsync -a --info=progress2 "$BIOS_PATH"/ "$MOUNT_POINT/BIOS/"
+    enhanced_rsync "$BIOS_PATH/" "$MOUNT_POINT/BIOS/" "-a"
     echo -e "${GRN}BIOS files installed successfully!${RESET}"
   fi
 else
@@ -514,7 +610,8 @@ if [ -d "$SETS_DIR" ]; then
           read -r PS1_YN
           
           echo "Choose box art type:"
-          select BOXART_CHOICE in "2D Box" "2D Box and Screenshot" "Miyoo Mix"; do
+          print_info "Miyoo Mix is the recommended box art style for the best visual experience"
+          select BOXART_CHOICE in "Miyoo Mix (Recommended)" "2D Box" "2D Box and Screenshot"; do
             [ -n "$BOXART_CHOICE" ] && break
           done
           
@@ -522,16 +619,16 @@ if [ -d "$SETS_DIR" ]; then
           if [ "$MODEL_CHOICE" = "Miyoo Plus" ]; then
             if [ -d "$SETS_DIR/done-set-three_202501/Configs for Plus Model" ]; then
               echo -e "${CYN}Installing Miyoo Plus configurations...${RESET}"
-              rsync -a --info=progress2 "$SETS_DIR/done-set-three_202501/Configs for Plus Model/RetroArch/" "$MOUNT_POINT/RetroArch/"
-              rsync -a --info=progress2 "$SETS_DIR/done-set-three_202501/Configs for Plus Model/Saves/" "$MOUNT_POINT/Saves/"
+              enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for Plus Model/RetroArch/" "$MOUNT_POINT/RetroArch/" "-a"
+              enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for Plus Model/Saves/" "$MOUNT_POINT/Saves/" "-a"
             else
               echo -e "${RED}Configuration directory for Miyoo Plus not found${RESET}"
             fi
           elif [ "$MODEL_CHOICE" = "Miyoo v4" ]; then
             if [ -d "$SETS_DIR/done-set-three_202501/Configs for V4 Model" ]; then
               echo -e "${CYN}Installing Miyoo v4 configurations...${RESET}"
-              rsync -a --info=progress2 "$SETS_DIR/done-set-three_202501/Configs for V4 Model/RetroArch/" "$MOUNT_POINT/RetroArch/"
-              rsync -a --info=progress2 "$SETS_DIR/done-set-three_202501/Configs for V4 Model/Saves/" "$MOUNT_POINT/Saves/"
+              enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for V4 Model/RetroArch/" "$MOUNT_POINT/RetroArch/" "-a"
+              enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for V4 Model/Saves/" "$MOUNT_POINT/Saves/" "-a"
             else
               echo -e "${RED}Configuration directory for Miyoo v4 not found${RESET}"
             fi
@@ -540,7 +637,7 @@ if [ -d "$SETS_DIR" ]; then
           # Install emulator configurations
           if [ -d "$SETS_DIR/done-set-three_202501/Sensible Console Arrangement" ]; then
             echo -e "${CYN}Installing emulator configurations...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/done-set-three_202501/Sensible Console Arrangement/Emu/" "$MOUNT_POINT/Emu/"
+            enhanced_rsync "$SETS_DIR/done-set-three_202501/Sensible Console Arrangement/Emu/" "$MOUNT_POINT/Emu/" "-a"
           else
             echo -e "${RED}Emulator configuration directory not found${RESET}"
           fi
@@ -548,7 +645,7 @@ if [ -d "$SETS_DIR" ]; then
           # Install base ROMs (always do this for done-set-three)
           if [ -d "$SETS_DIR/done-set-three_202501/Done Set 3/Roms" ]; then
             echo -e "${CYN}Installing base ROM set...${RESET}"
-            rsync -a --ignore-existing --info=progress2 "$SETS_DIR/done-set-three_202501/Done Set 3/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/done-set-three_202501/Done Set 3/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}Base ROM directory not found${RESET}"
           fi
@@ -557,7 +654,7 @@ if [ -d "$SETS_DIR" ]; then
           if [[ "$PS1_YN" =~ ^[Yy]$ ]]; then
             if [ -d "$SETS_DIR/done-set-three_202501/PS1 Addon for 256gb SD Cards/Roms" ]; then
               echo -e "${CYN}Installing PS1 games...${RESET}"
-              rsync -a --ignore-existing --info=progress2 "$SETS_DIR/done-set-three_202501/PS1 Addon for 256gb SD Cards/Roms/" "$MOUNT_POINT/Roms/"
+              enhanced_rsync "$SETS_DIR/done-set-three_202501/PS1 Addon for 256gb SD Cards/Roms/" "$MOUNT_POINT/Roms/" "-a"
             else
               echo -e "${RED}PS1 ROM directory not found${RESET}"
             fi
@@ -565,43 +662,46 @@ if [ -d "$SETS_DIR" ]; then
           
           # Install artwork based on choice
           case "$BOXART_CHOICE" in
+            "Miyoo Mix (Recommended)")
+                if [ -d "$SETS_DIR/done-set-three_202501/Imgs (Miyoo Mix)" ]; then
+                    print_step "Installing Miyoo Mix art..."
+                    print_info "Skipping any existing box art files"
+                    enhanced_rsync "$SETS_DIR/done-set-three_202501/Imgs (Miyoo Mix)/Roms/" "$MOUNT_POINT/Roms/" "-a"
+                else
+                    print_error "Miyoo Mix art directory not found"
+                fi
+                ;;
             "2D Box")
-              if [ -d "$SETS_DIR/done-set-three_202501/Imgs (2D Box)" ]; then
-                echo -e "${CYN}Installing 2D box art...${RESET}"
-                rsync -a --info=progress2 "$SETS_DIR/done-set-three_202501/Imgs (2D Box)/Roms/" "$MOUNT_POINT/Roms/"
-              else
-                echo -e "${RED}2D box art directory not found${RESET}"
-              fi
-              ;;
+                if [ -d "$SETS_DIR/done-set-three_202501/Imgs (2D Box)" ]; then
+                    print_step "Installing 2D box art..."
+                    print_info "Skipping any existing box art files"
+                    enhanced_rsync "$SETS_DIR/done-set-three_202501/Imgs (2D Box)/Roms/" "$MOUNT_POINT/Roms/" "-a"
+                else
+                    print_error "2D box art directory not found"
+                fi
+                ;;
             "2D Box and Screenshot")
-              if [ -d "$SETS_DIR/done-set-three_202501/Imgs (2D Box and Screenshot)" ]; then
-                echo -e "${CYN}Installing 2D box art and screenshots...${RESET}"
-                rsync -a --info=progress2 "$SETS_DIR/done-set-three_202501/Imgs (2D Box and Screenshot)/Roms/" "$MOUNT_POINT/Roms/"
-              else
-                echo -e "${RED}2D box art and screenshots directory not found${RESET}"
-              fi
-              ;;
-            "Miyoo Mix")
-              if [ -d "$SETS_DIR/done-set-three_202501/Imgs (Miyoo Mix)" ]; then
-                echo -e "${CYN}Installing Miyoo Mix art...${RESET}"
-                rsync -a --info=progress2 "$SETS_DIR/done-set-three_202501/Imgs (Miyoo Mix)/Roms/" "$MOUNT_POINT/Roms/"
-              else
-                echo -e "${RED}Miyoo Mix art directory not found${RESET}"
-              fi
-              ;;
+                if [ -d "$SETS_DIR/done-set-three_202501/Imgs (2D Box and Screenshot)" ]; then
+                    print_step "Installing 2D box art and screenshots..."
+                    print_info "Skipping any existing box art files"
+                    enhanced_rsync "$SETS_DIR/done-set-three_202501/Imgs (2D Box and Screenshot)/Roms/" "$MOUNT_POINT/Roms/" "-a"
+                else
+                    print_error "2D box art and screenshots directory not found"
+                fi
+                ;;
           esac
           ;;
           
         2) # tiny-best-set (main)
           if [ -d "$SETS_DIR/tiny-best-set-go-games/Roms" ]; then
             echo -e "${CYN}Installing main ROM set...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-games/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-games/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}Main ROM set directory not found${RESET}"
           fi
           if [ -d "$SETS_DIR/tiny-best-set-go-imgs-onion/Roms" ]; then
             echo -e "${CYN}Installing artwork...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-imgs-onion/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-imgs-onion/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}Main artwork directory not found${RESET}"
           fi
@@ -610,13 +710,13 @@ if [ -d "$SETS_DIR" ]; then
         3) # tiny-best-set-go (64 expansion)
           if [ -d "$SETS_DIR/tiny-best-set-go-expansion-64-games/Roms" ]; then
             echo -e "${CYN}Installing 64 expansion ROMs...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-expansion-64-games/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-expansion-64-games/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}64 expansion ROM directory not found${RESET}"
           fi
           if [ -d "$SETS_DIR/tiny-best-set-go-expansion-64-imgs-onion/Roms" ]; then
             echo -e "${CYN}Installing 64 expansion artwork...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-expansion-64-imgs-onion/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-expansion-64-imgs-onion/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}64 expansion artwork directory not found${RESET}"
           fi
@@ -625,13 +725,13 @@ if [ -d "$SETS_DIR" ]; then
         4) # tiny-best-set-go (128 expansion)
           if [ -d "$SETS_DIR/tiny-best-set-go-expansion-128-games/Roms" ]; then
             echo -e "${CYN}Installing 128 expansion ROMs...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-expansion-128-games/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-expansion-128-games/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}128 expansion ROM directory not found${RESET}"
           fi
           if [ -d "$SETS_DIR/tiny-best-set-go-expansion-128-imgs-onion/Roms" ]; then
             echo -e "${CYN}Installing 128 expansion artwork...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-expansion-128-imgs-onion/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-expansion-128-imgs-onion/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}128 expansion artwork directory not found${RESET}"
           fi
@@ -640,37 +740,37 @@ if [ -d "$SETS_DIR" ]; then
         5) # tiny-best-set (all expansions)
           if [ -d "$SETS_DIR/tiny-best-set-go-games/Roms" ]; then
             echo -e "${CYN}Installing main ROM set...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-games/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-games/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}Main ROM set directory not found${RESET}"
           fi
           if [ -d "$SETS_DIR/tiny-best-set-go-imgs-onion/Roms" ]; then
             echo -e "${CYN}Installing main artwork...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-imgs-onion/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-imgs-onion/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}Main artwork directory not found${RESET}"
           fi
           if [ -d "$SETS_DIR/tiny-best-set-go-expansion-64-games/Roms" ]; then
             echo -e "${CYN}Installing 64 expansion ROMs...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-expansion-64-games/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-expansion-64-games/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}64 expansion ROM directory not found${RESET}"
           fi
           if [ -d "$SETS_DIR/tiny-best-set-go-expansion-64-imgs-onion/Roms" ]; then
             echo -e "${CYN}Installing 64 expansion artwork...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-expansion-64-imgs-onion/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-expansion-64-imgs-onion/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}64 expansion artwork directory not found${RESET}"
           fi
           if [ -d "$SETS_DIR/tiny-best-set-go-expansion-128-games/Roms" ]; then
             echo -e "${CYN}Installing 128 expansion ROMs...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-expansion-128-games/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-expansion-128-games/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}128 expansion ROM directory not found${RESET}"
           fi
           if [ -d "$SETS_DIR/tiny-best-set-go-expansion-128-imgs-onion/Roms" ]; then
             echo -e "${CYN}Installing 128 expansion artwork...${RESET}"
-            rsync -a --info=progress2 "$SETS_DIR/tiny-best-set-go-expansion-128-imgs-onion/Roms/" "$MOUNT_POINT/Roms/"
+            enhanced_rsync "$SETS_DIR/tiny-best-set-go-expansion-128-imgs-onion/Roms/" "$MOUNT_POINT/Roms/" "-a"
           else
             echo -e "${RED}128 expansion artwork directory not found${RESET}"
           fi
