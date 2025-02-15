@@ -51,8 +51,29 @@ enhanced_rsync() {
         debug_log "Source: $src"
         debug_log "Destination: $dst"
         debug_log "Flags: $flags"
+        
+        # Show what would be transferred without making changes
+        debug_log "Files that would be transferred (dry-run):"
+        rsync $flags --dry-run -v --stats "$src" "$dst"
+        
+        # Ask for confirmation before proceeding
+        echo -e "${YEL}Would you like to see what files will be changed? [y/N]${RESET}"
+        read -r SHOW_CHANGES
+        if [[ "$SHOW_CHANGES" =~ ^[Yy]$ ]]; then
+            rsync $flags --dry-run -iv "$src" "$dst"
+        fi
+        
+        echo -e "${YEL}Do you want to proceed with the transfer? [Y/n]${RESET}"
+        read -r PROCEED
+        if [[ "$PROCEED" =~ ^[Nn]$ ]]; then
+            debug_log "Transfer cancelled by user"
+            return 1
+        fi
+        
+        # Perform the actual transfer with verbose output
         rsync $flags -v --stats "$src" "$dst"
     else
+        # Non-debug mode: show progress but not detailed stats
         rsync $flags --info=progress2 "$src" "$dst"
     fi
 }
@@ -499,9 +520,7 @@ if [ -d "$ONION_PATH" ]; then
       exit 1
     fi
     
-    # Create necessary directories
-    mkdir -p "$MOUNT_POINT/Roms" "$MOUNT_POINT/Emu" "$MOUNT_POINT/BIOS" "$MOUNT_POINT/App"
-    
+
     echo -e "${CYN}Installing OnionOS...${RESET}"
     enhanced_rsync "$ONION_PATH/" "$MOUNT_POINT/" "-a"
     
@@ -637,6 +656,11 @@ if [ -d "$SETS_DIR" ]; then
           # Install emulator configurations
           if [ -d "$SETS_DIR/done-set-three_202501/Sensible Console Arrangement" ]; then
             echo -e "${CYN}Installing emulator configurations...${RESET}"
+            if [ "$DEBUG_MODE" = true ]; then
+                print_info "This will merge with your existing Emu directory"
+                print_info "Existing files with the same name will be updated"
+                print_info "Other files in your Emu directory will not be touched"
+            fi
             enhanced_rsync "$SETS_DIR/done-set-three_202501/Sensible Console Arrangement/Emu/" "$MOUNT_POINT/Emu/" "-a"
           else
             echo -e "${RED}Emulator configuration directory not found${RESET}"
