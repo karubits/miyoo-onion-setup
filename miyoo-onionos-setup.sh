@@ -8,9 +8,107 @@ CYN='\033[0;36m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-ONION_PATH="./Onion-v4.3.1-1"
+# Initialize variables
+GITHUB_REPO="OnionUI/Onion"
+ONION_PATH=""
 BIOS_PATH="./BIOS"
 SETS_DIR="./sets"
+
+check_onion_version() {
+    # Get latest release version from GitHub
+    echo -e "${CYN}Checking latest OnionOS version from GitHub...${RESET}"
+    LATEST_VERSION=$(curl -s "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | grep -o '"tag_name": ".*"' | cut -d'"' -f4)
+    
+    if [ -z "$LATEST_VERSION" ]; then
+        echo -e "${RED}Failed to fetch latest version from GitHub${RESET}"
+        return 1
+    fi
+    
+    echo -e "${CYN}Latest version on GitHub: ${BOLD}$LATEST_VERSION${RESET}"
+    
+    # Find all Onion directories
+    local ONION_DIRS=(Onion-v*)
+    
+    if [ ${#ONION_DIRS[@]} -eq 0 ] || [ ! -d "${ONION_DIRS[0]}" ]; then
+        echo -e "${YEL}No local OnionOS installation found${RESET}"
+        echo -e "${CYN}Downloading latest version ($LATEST_VERSION)...${RESET}"
+        download_onion_version "$LATEST_VERSION"
+        return
+    fi
+    
+    # Find the latest local version
+    local LATEST_LOCAL=""
+    local LATEST_LOCAL_DIR=""
+    
+    for dir in "${ONION_DIRS[@]}"; do
+        if [[ $dir =~ Onion-v([0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?) ]]; then
+            local version="${BASH_REMATCH[1]}"
+            if [ -z "$LATEST_LOCAL" ] || version_gt "$version" "$LATEST_LOCAL"; then
+                LATEST_LOCAL="$version"
+                LATEST_LOCAL_DIR="$dir"
+            fi
+        fi
+    done
+    
+    if [ -n "$LATEST_LOCAL" ]; then
+        echo -e "${CYN}Latest local version: ${BOLD}$LATEST_LOCAL${RESET}"
+        
+        # Compare versions
+        if version_gt "${LATEST_VERSION#v}" "$LATEST_LOCAL"; then
+            echo -e "${YEL}A newer version is available${RESET}"
+            echo -e "${CYN}Downloading version $LATEST_VERSION...${RESET}"
+            download_onion_version "$LATEST_VERSION"
+        else
+            echo -e "${GRN}Local version is up to date${RESET}"
+            ONION_PATH="./$LATEST_LOCAL_DIR"
+        fi
+    else
+        echo -e "${YEL}No valid local version found${RESET}"
+        echo -e "${CYN}Downloading latest version ($LATEST_VERSION)...${RESET}"
+        download_onion_version "$LATEST_VERSION"
+    fi
+}
+
+# Helper function to compare version strings
+version_gt() {
+    test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"
+}
+
+# Helper function to download and extract OnionOS
+download_onion_version() {
+    local version="$1"
+    local download_url=$(curl -s "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | grep "browser_download_url.*Onion-v.*\.zip" | cut -d'"' -f4)
+    
+    if [ -z "$download_url" ]; then
+        echo -e "${RED}Failed to get download URL${RESET}"
+        return 1
+    fi
+    
+    local temp_file="onion_temp.zip"
+    
+    # Download the file
+    if ! wget -q --show-progress -O "$temp_file" "$download_url"; then
+        echo -e "${RED}Failed to download OnionOS${RESET}"
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    # Extract the file
+    echo -e "${CYN}Extracting OnionOS...${RESET}"
+    if ! unzip -q -o "$temp_file"; then
+        echo -e "${RED}Failed to extract OnionOS${RESET}"
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    # Clean up
+    rm -f "$temp_file"
+    
+    # Set the ONION_PATH to the newly downloaded version
+    ONION_PATH="./Onion-${version}"
+    
+    echo -e "${GRN}Successfully downloaded and extracted OnionOS version $version${RESET}"
+}
 
 check_and_install_prerequisites() {
   echo -e "${CYN}Checking prerequisites...${RESET}"
