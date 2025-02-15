@@ -1,0 +1,17 @@
+.cursorignore
+BIOS/
+Onion*/
+sets/
+*.7z
+*.bz2
+*.deb
+*.dmg
+*.exe
+*.gz
+*.msi
+*.pkg
+*.rar
+*.rpm
+*.rpm
+*.tar
+*.zip
