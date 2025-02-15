@@ -10,7 +10,9 @@ RESET='\033[0m'
 
 # Initialize variables
 GITHUB_REPO="OnionUI/Onion"
+LOGOTWEAK_REPO="schmurtzm/Miyoo-Mini-easy-logotweak"
 ONION_PATH=""
+LOGOTWEAK_PATH=""
 BIOS_PATH="./BIOS"
 SETS_DIR="./sets"
 
@@ -108,6 +110,97 @@ download_onion_version() {
     ONION_PATH="./Onion-${version}"
     
     echo -e "${GRN}Successfully downloaded and extracted OnionOS version $version${RESET}"
+}
+
+check_and_install_easy_logo_tweak() {
+    local mount_point="$1"
+    
+    echo -e "${CYN}Checking latest Easy Logo Tweak version from GitHub...${RESET}"
+    LATEST_VERSION=$(curl -s "https://api.github.com/repos/$LOGOTWEAK_REPO/releases/latest" | grep -o '"tag_name": ".*"' | cut -d'"' -f4)
+    
+    if [ -z "$LATEST_VERSION" ]; then
+        echo -e "${RED}Failed to fetch latest Easy Logo Tweak version from GitHub${RESET}"
+        return 1
+    fi
+    
+    echo -e "${CYN}Latest version on GitHub: ${BOLD}$LATEST_VERSION${RESET}"
+    
+    # Find local Easy Logo Tweak directory
+    local LOGOTWEAK_DIRS=(Easy-LogoTweak_v*)
+    local LATEST_LOCAL=""
+    local LATEST_LOCAL_DIR=""
+    
+    if [ ${#LOGOTWEAK_DIRS[@]} -gt 0 ] && [ -d "${LOGOTWEAK_DIRS[0]}" ]; then
+        for dir in "${LOGOTWEAK_DIRS[@]}"; do
+            if [[ $dir =~ Easy-LogoTweak_v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+                local version="${BASH_REMATCH[1]}"
+                if [ -z "$LATEST_LOCAL" ] || version_gt "$version" "$LATEST_LOCAL"; then
+                    LATEST_LOCAL="$version"
+                    LATEST_LOCAL_DIR="$dir"
+                fi
+            fi
+        done
+    fi
+    
+    local should_download=true
+    if [ -n "$LATEST_LOCAL" ]; then
+        echo -e "${CYN}Latest local version: ${BOLD}$LATEST_LOCAL${RESET}"
+        if ! version_gt "${LATEST_VERSION#v}" "$LATEST_LOCAL"; then
+            echo -e "${GRN}Local Easy Logo Tweak version is up to date${RESET}"
+            should_download=false
+            LOGOTWEAK_PATH="./$LATEST_LOCAL_DIR"
+        else
+            echo -e "${YEL}A newer version of Easy Logo Tweak is available${RESET}"
+        fi
+    else
+        echo -e "${YEL}No local Easy Logo Tweak installation found${RESET}"
+    fi
+    
+    if [ "$should_download" = true ]; then
+        echo -e "${CYN}Downloading Easy Logo Tweak version $LATEST_VERSION...${RESET}"
+        local download_url=$(curl -s "https://api.github.com/repos/$LOGOTWEAK_REPO/releases/latest" | grep "browser_download_url.*\.zip" | cut -d'"' -f4)
+        
+        if [ -z "$download_url" ]; then
+            echo -e "${RED}Failed to get Easy Logo Tweak download URL${RESET}"
+            return 1
+        fi
+        
+        local temp_file="logotweak_temp.zip"
+        LOGOTWEAK_PATH="./Easy-LogoTweak_${LATEST_VERSION}"
+        
+        # Create version directory
+        mkdir -p "$LOGOTWEAK_PATH"
+        
+        # Download the file
+        if ! wget -q --show-progress -O "$temp_file" "$download_url"; then
+            echo -e "${RED}Failed to download Easy Logo Tweak${RESET}"
+            rm -f "$temp_file"
+            rm -rf "$LOGOTWEAK_PATH"
+            return 1
+        fi
+        
+        # Extract the file into the version directory
+        echo -e "${CYN}Extracting Easy Logo Tweak...${RESET}"
+        if ! unzip -q -o "$temp_file" -d "$LOGOTWEAK_PATH"; then
+            echo -e "${RED}Failed to extract Easy Logo Tweak${RESET}"
+            rm -f "$temp_file"
+            rm -rf "$LOGOTWEAK_PATH"
+            return 1
+        fi
+        
+        # Clean up
+        rm -f "$temp_file"
+    fi
+    
+    # Copy App directory to SD card
+    if [ -d "$LOGOTWEAK_PATH/App" ]; then
+        echo -e "${CYN}Installing Easy Logo Tweak to SD card...${RESET}"
+        rsync -a --info=progress2 "$LOGOTWEAK_PATH/App/" "$mount_point/App/"
+        echo -e "${GRN}Easy Logo Tweak installation complete!${RESET}"
+    else
+        echo -e "${RED}Could not find App directory in Easy Logo Tweak package${RESET}"
+        return 1
+    fi
 }
 
 check_and_install_prerequisites() {
