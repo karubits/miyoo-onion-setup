@@ -201,19 +201,19 @@ print_info() {
 print_banner() {
     echo -e "${CYN}${BOLD}"
     cat << "EOF"
- __  __ _         
-|  \/  (_)_   _  ___   ___ 
-| |\/| | | | | |/ _ \ / _ \ 
-| |  | | | |_| | (_) | (_) | +
-|_|  |_|_|\__, |\___/ \___/
-          |___/                    
-     ___        _            ___  ____
-    / _ \ _ __ (_) ___  _ _ / _ \/ ___|
-   | | | | '_ \| |/ _ \| | | | | \___ \
-   | |_| | | | | | (_) | | | |_| |___) |
-    \___/|_| |_|_|\___/|_|  \___/|____/
+     __  __ _                           
+    |  \/  (_)_   _  ___   ___      _   
+    | |\/| | | | | |/ _ \ / _ \   _| |_ 
+    | |  | | | |_| | (_) | (_) | |_   _|
+    |_|  |_|_|\__, |\___/ \___/    |_|  
+      ___     |___/                     
+     / _ \ _ __ (_) ___  _ __           
+    | | | | '_ \| |/ _ \| '_ \          
+    | |_| | | | | | (_) | | | |         
+     \___/|_| |_|_|\___/|_| |_|               
 EOF
-    echo -e "                    Setup Script v${VERSION}${RESET}\n"
+    echo -e "\n     Unofficial Onion Setup Script v${VERSION}${RESET}"
+    echo -e "${YEL}     Created by karubits${RESET}"
 }
 
 check_onion_version() {
@@ -556,7 +556,7 @@ collect_user_choices() {
     # Ask about ROM sets if directory exists
     if [ -d "$SETS_DIR" ]; then
         print_step "ROM Installation"
-        echo -e "Would you like to install ROM sets? [y/N]: "
+        echo -e "Would you like to install the default ROM sets? (Select 'No' if you're a connoisseur and prefer to curate your own 🎩) [y/N]:"
         read -r INSTALL_ROMS
         
         if [[ "$INSTALL_ROMS" =~ ^[Yy]$ ]]; then
