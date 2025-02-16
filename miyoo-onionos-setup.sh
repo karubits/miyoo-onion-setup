@@ -736,13 +736,19 @@ fi
 
 # Install Easy Logo Tweak if selected
 if [[ "$INSTALL_LOGOTWEAK" =~ ^[Yy]$ ]]; then
-  if [ -n "$MOUNT_POINT" ]; then
-    mkdir -p "$MOUNT_POINT/App"
-    check_and_install_easy_logo_tweak "$MOUNT_POINT"
+  if [[ "$INSTALL_ONION" =~ ^[Yy]$ ]]; then
+    # Skip Easy Logo Tweak installation here if OnionOS is being installed
+    INSTALL_LOGOTWEAK_LATER=true
   else
-    print_error "No mount point found for Easy Logo Tweak installation"
-    print_info "Please make sure the device is properly inserted and mounted."
-    exit 1
+    # Install Easy Logo Tweak now if OnionOS is not being installed
+    if [ -n "$MOUNT_POINT" ]; then
+      mkdir -p "$MOUNT_POINT/App"
+      check_and_install_easy_logo_tweak "$MOUNT_POINT"
+    else
+      print_error "No mount point found for Easy Logo Tweak installation"
+      print_info "Please make sure the device is properly inserted and mounted."
+      exit 1
+    fi
   fi
 fi
 
@@ -926,14 +932,37 @@ cat << "EOF"
 ██║   ██║██╔══██║██║╚██╔╝██║██╔══╝      ██║   ██║██║╚██╗██║╚═╝
 ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗    ╚██████╔╝██║ ╚████║██╗
  ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝     ╚═════╝ ╚═╝  ╚═══╝╚═╝
-Retro revival complete—insert SD card to power up nostalgia!                                                                                                                                                                                                                                                                                                                 
+ Retro revival complete—insert SD card to power up nostalgia!                                                                                                                                                                                                                                                                                                                 
 EOF
 echo -e "${RESET}"
 
 print_info "Please follow these steps:"
-echo -e "1. Remove the SD card and insert it into your Miyoo device"
-echo -e "2. Wait for the Onion installation to complete"
-echo -e "3. After the device restarts enjoy your games!"
+if [[ "$INSTALL_ONION" =~ ^[Yy]$ ]]; then
+    echo -e "1. Remove the SD card and insert it into your Miyoo device"
+    echo -e "2. Wait for the Onion installation to complete"
+    if [[ "$INSTALL_LOGOTWEAK_LATER" = true ]]; then
+        echo -e "3. Shutdown the device by holding the power button"
+        echo -e "4. Insert the SD card back into the PC to install Easy Logo Tweak"
+        echo -e "\nPress Enter once the SD card has been reinserted..."
+        read -r
+        
+        # Get new mount point after reinsertion
+        MOUNT_POINT=$(find_mount_point "$SELECTED_DEVICE")
+        if [ -n "$MOUNT_POINT" ]; then
+            print_step "Installing Easy Logo Tweak..."
+            mkdir -p "$MOUNT_POINT/App"
+            check_and_install_easy_logo_tweak "$MOUNT_POINT"
+        else
+            print_error "No mount point found for Easy Logo Tweak installation"
+            print_info "Please make sure the device is properly inserted and mounted."
+            exit 1
+        fi
+    else
+        echo -e "3. After the device restarts, enjoy your games!"
+    fi
+else
+    echo -e "1. Enjoy your games!"
+fi
 
 # Final unmount and eject
 if [ -n "$MOUNT_POINT" ]; then
