@@ -926,7 +926,7 @@ cat << "EOF"
 ██║   ██║██╔══██║██║╚██╔╝██║██╔══╝      ██║   ██║██║╚██╗██║╚═╝
 ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗    ╚██████╔╝██║ ╚████║██╗
  ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝     ╚═════╝ ╚═╝  ╚═══╝╚═╝
-Retro revival complete—press start to power up nostalgia!                                                                                                                                                                                                                                                                                                                 
+Retro revival complete—insert SD card to power up nostalgia!                                                                                                                                                                                                                                                                                                                 
 EOF
 echo -e "${RESET}"
 
