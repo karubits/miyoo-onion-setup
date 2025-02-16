@@ -2,11 +2,14 @@
 
 A bash script to automate the installation and setup of OnionOS, BIOS files, and ROM sets for Miyoo Plus devices.
 
+![screenshot](./img/screenshot.png)
+
 ## ⚠️ Important Notes
 
 - **BIOS files and ROM sets are NOT included** with this script for legal reasons
 - You must provide your own BIOS files and ROM sets
 - Place them in the appropriate directories as described below before running the script
+- The script will format your SD card if you choose a new installation - **ALL DATA WILL BE ERASED**
 
 ## 🗂️ Required Directory Structure
 
@@ -25,32 +28,42 @@ A bash script to automate the installation and setup of OnionOS, BIOS files, and
 │   │   ├── PS1 Addon for 256gb SD Cards/
 │   │   └── Sensible Console Arrangement/
 │   ├── tiny-best-set-go-games/
+│   │   └── Roms/
 │   ├── tiny-best-set-go-imgs-onion/
+│   │   └── Roms/
 │   ├── tiny-best-set-go-expansion-64-games/
+│   │   └── Roms/
 │   ├── tiny-best-set-go-expansion-64-imgs-onion/
+│   │   └── Roms/
 │   ├── tiny-best-set-go-expansion-128-games/
+│   │   └── Roms/
 │   └── tiny-best-set-go-expansion-128-imgs-onion/
+│       └── Roms/
 └── miyoo-onionos-setup.sh   # The setup script
 ```
 
 ## 🚀 Features
 
-- Automatic SD card formatting (optional)
+- Automated setup process with all choices collected at the beginning
+- Safe SD card formatting with confirmation checks
 - Automatic download and installation of the latest OnionOS version
 - Installation of Easy Logo Tweak (automatically downloads latest version)
 - BIOS files installation
 - Multiple ROM set installation options:
-  - Done Set Three (with model-specific configurations)
-  - Tiny Best Set (main)
-  - Tiny Best Set GO (64GB expansion)
-  - Tiny Best Set GO (128GB expansion)
-  - Tiny Best Set (all expansions)
-- Artwork installation options:
-  - 2D Box Art
-  - 2D Box Art with Screenshots
-  - Miyoo Mix Style
+  1. Done Set Three
+     - Model-specific configurations (Plus/V4)
+     - Optional PS1 games
+     - Choice of artwork styles:
+       - Miyoo Mix (Recommended)
+       - 2D Box
+       - 2D Box with Screenshots
+  2. Tiny Best Set GO Options:
+     - Main set only
+     - Main + 64GB expansion
+     - Main + 64GB + 128GB expansion
+- Debug mode for detailed installation information (--debug flag)
 - Safe device mounting and unmounting
-
+- Progress indicators for all file operations
 
 ## 📋 Prerequisites
 
@@ -80,26 +93,46 @@ The script will automatically check for and install the following required packa
    ```bash
    ./miyoo-onionos-setup.sh
    ```
+   For detailed output:
+   ```bash
+   ./miyoo-onionos-setup.sh --debug
+   ```
 
-## 📝 Script Options
+## 📝 Installation Process
 
-The script will guide you through the following options:
+The script will guide you through the following steps:
 
-1. **OnionOS Installation**
-   - Downloads and installs the latest version
-   - Creates necessary directories on SD card
+1. **Prerequisites Check**
+   - Verifies required packages
+   - Installs missing dependencies
 
-2. **Easy Logo Tweak Installation**
-   - Automatically installs/updates to the latest version
+2. **SD Card Selection**
+   - Lists available USB devices
+   - Helps identify your SD card
 
-3. **BIOS Installation**
-   - Copies BIOS files to the appropriate directory
+3. **Installation Type**
+   - New Installation (formats SD card)
+   - Update Existing Installation
 
-4. **ROM Sets Installation**
-   - Choose from multiple ROM set options
-   - Model-specific configurations for Miyoo Plus/V4
-   - Optional PS1 games installation
-   - Various artwork style options
+4. **Component Selection**
+   - OnionOS (required for new installations)
+   - Easy Logo Tweak
+   - BIOS files
+   - ROM sets
+
+5. **ROM Set Configuration**
+   - Choice of ROM set package
+   - Model-specific settings (for Done Set Three)
+   - Artwork preferences
+
+6. **Configuration Review**
+   - Shows summary of selected options
+   - Requires confirmation before proceeding
+
+7. **Installation**
+   - Formats SD card (if selected)
+   - Downloads and installs components
+   - Shows progress for all operations
 
 ## ⚙️ Device Support
 
@@ -108,10 +141,12 @@ The script will guide you through the following options:
 
 ## 🔒 Safety Features
 
-- Checks for device mount points
+- Confirmation required for formatting
+- Device details shown before format
 - Safe device ejection
-- Confirmation prompts for formatting
-- Preserves existing files with --ignore-existing option for ROMs
+- Automatic mount point detection
+- Progress tracking for all file operations
+- Debug mode for detailed operation information
 
 ## ⚖️ Legal Notice
 
