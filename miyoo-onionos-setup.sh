@@ -1,5 +1,26 @@
 #!/usr/bin/env bash
 
+#=============================================================================
+# Miyoo Plus OnionOS Setup Script
+#=============================================================================
+# Created: 2024-03-19
+# Updated: 2024-03-20
+#
+# A comprehensive setup script for Miyoo Plus/Mini devices that:
+# - Automates OnionOS installation and updates
+# - Safely formats and prepares SD cards
+# - Installs BIOS files, ROM sets, and artwork
+# - Configures Easy Logo Tweak
+# - Supports multiple ROM set options:
+#   * Done Set Three (with model-specific configs)
+#   * Tiny Best Set GO (with expansion packs)
+# - Features interactive setup with safety checks
+# - Provides detailed progress feedback
+#=============================================================================
+
+# Script version
+VERSION="1.5"
+
 # Color definitions
 RED='\033[0;31m'
 GRN='\033[0;32m'
@@ -192,7 +213,7 @@ print_banner() {
    | |_| | | | | | (_) | | | |_| |___) |
     \___/|_| |_|_|\___/|_|  \___/|____/
 EOF
-    echo -e "                    Setup Script v1.0${RESET}\n"
+    echo -e "                    Setup Script v${VERSION}${RESET}\n"
 }
 
 check_onion_version() {
@@ -554,6 +575,7 @@ collect_user_choices() {
                 [ -n "$SET_CHOICE" ] && ROM_SET_CHOICE="$REPLY" && break
             done
             
+            # Add Done Set Three specific configuration here
             if [ "$ROM_SET_CHOICE" = "1" ]; then
                 print_step "Device Model Selection"
                 select MODEL_CHOICE in "Miyoo Plus" "Miyoo v4"; do
@@ -709,29 +731,7 @@ if [[ "$INSTALL_ONION" =~ ^[Yy]$ ]] && [ -d "$ONION_PATH" ]; then
   
   print_step "Installing OnionOS..."
   enhanced_rsync "$ONION_PATH/" "$MOUNT_POINT/" "-a"
-  
   print_success "OnionOS installation complete!"
-  print_info "Please follow these steps:"
-  echo -e "1. Remove the SD card and insert it into your Miyoo device"
-  echo -e "2. Wait for the Onion installation to complete"
-  echo -e "3. After the device restarts, shut it down"
-  echo -e "4. Remove the SD card and reinsert it into your computer"
-  echo -e "5. Press ENTER when ready to continue"
-  
-  if [ -n "$MOUNT_POINT" ]; then
-    echo -e "${CYN}Unmounting and ejecting device...${RESET}"
-    if command -v udisksctl &>/dev/null; then
-      udisksctl unmount -b "/dev/${SELECTED_DEVICE}1" &>/dev/null
-    else
-      sudo umount "/dev/${SELECTED_DEVICE}1" &>/dev/null
-    fi
-    sudo eject "/dev/$SELECTED_DEVICE"
-    print_success "Device ejected. You can now safely remove the SD card."
-  fi
-  
-  read -r
-  # Update mount point after reinsertion
-  MOUNT_POINT=$(find_mount_point "$SELECTED_DEVICE")
 fi
 
 # Install Easy Logo Tweak if selected
@@ -831,105 +831,109 @@ if [[ "$INSTALL_ROMS" =~ ^[Yy]$ ]] && [ -d "$SETS_DIR" ]; then
       ;;
       
     "1") # done-set-three
-      echo -e "Which device model?"
-      select MODEL_CHOICE in "Miyoo Plus" "Miyoo v4"; do
-        [ -n "$MODEL_CHOICE" ] && break
-      done
-      
-      echo "Include PS1 games? [y/N]"
-      read -r PS1_CHOICE
-      
-      echo "Choose box art type:"
-      print_info "Miyoo Mix is the recommended box art style for the best visual experience"
-      select BOXART_CHOICE in "Miyoo Mix (Recommended)" "2D Box" "2D Box and Screenshot"; do
-        [ -n "$BOXART_CHOICE" ] && break
-      done
-      
-      # Install ROMs based on model choice
-      if [ "$MODEL_CHOICE" = "Miyoo Plus" ]; then
-        if [ -d "$SETS_DIR/done-set-three_202501/Configs for Plus Model" ]; then
-          echo -e "${CYN}Installing Miyoo Plus configurations...${RESET}"
-          enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for Plus Model/RetroArch/" "$MOUNT_POINT/RetroArch/" "-a"
-          enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for Plus Model/Saves/" "$MOUNT_POINT/Saves/" "-a"
-        else
-          echo -e "${RED}Configuration directory for Miyoo Plus not found${RESET}"
+        # Install ROMs based on model choice (using previously saved choices)
+        if [ "$MODEL_CHOICE" = "Miyoo Plus" ]; then
+            if [ -d "$SETS_DIR/done-set-three_202501/Configs for Plus Model" ]; then
+                print_step "Installing Miyoo Plus configurations..."
+                enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for Plus Model/RetroArch/" "$MOUNT_POINT/RetroArch/" "-a"
+                enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for Plus Model/Saves/" "$MOUNT_POINT/Saves/" "-a"
+            else
+                print_error "Configuration directory for Miyoo Plus not found"
+            fi
+        elif [ "$MODEL_CHOICE" = "Miyoo v4" ]; then
+            if [ -d "$SETS_DIR/done-set-three_202501/Configs for V4 Model" ]; then
+                print_step "Installing Miyoo v4 configurations..."
+                enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for V4 Model/RetroArch/" "$MOUNT_POINT/RetroArch/" "-a"
+                enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for V4 Model/Saves/" "$MOUNT_POINT/Saves/" "-a"
+            else
+                print_error "Configuration directory for Miyoo v4 not found"
+            fi
         fi
-      elif [ "$MODEL_CHOICE" = "Miyoo v4" ]; then
-        if [ -d "$SETS_DIR/done-set-three_202501/Configs for V4 Model" ]; then
-          echo -e "${CYN}Installing Miyoo v4 configurations...${RESET}"
-          enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for V4 Model/RetroArch/" "$MOUNT_POINT/RetroArch/" "-a"
-          enhanced_rsync "$SETS_DIR/done-set-three_202501/Configs for V4 Model/Saves/" "$MOUNT_POINT/Saves/" "-a"
-        else
-          echo -e "${RED}Configuration directory for Miyoo v4 not found${RESET}"
-        fi
-      fi
 
-      # Install emulator configurations
-      if [ -d "$SETS_DIR/done-set-three_202501/Sensible Console Arrangement" ]; then
-        echo -e "${CYN}Installing emulator configurations...${RESET}"
-        if [ "$DEBUG_MODE" = true ]; then
-            print_info "This will merge with your existing Emu directory"
-            print_info "Existing files with the same name will be updated"
-            print_info "Other files in your Emu directory will not be touched"
-        fi
-        enhanced_rsync "$SETS_DIR/done-set-three_202501/Sensible Console Arrangement/Emu/" "$MOUNT_POINT/Emu/" "-a"
-      else
-        echo -e "${RED}Emulator configuration directory not found${RESET}"
-      fi
-      
-      # Install base ROMs (always do this for done-set-three)
-      if [ -d "$SETS_DIR/done-set-three_202501/Done Set 3/Roms" ]; then
-        echo -e "${CYN}Installing base ROM set...${RESET}"
-        enhanced_rsync "$SETS_DIR/done-set-three_202501/Done Set 3/Roms/" "$MOUNT_POINT/Roms/" "-a"
-      else
-        echo -e "${RED}Base ROM directory not found${RESET}"
-      fi
-      
-      # Install PS1 games if selected
-      if [[ "$PS1_CHOICE" =~ ^[Yy]$ ]]; then
-        if [ -d "$SETS_DIR/done-set-three_202501/PS1 Addon for 256gb SD Cards/Roms" ]; then
-          echo -e "${CYN}Installing PS1 games...${RESET}"
-          enhanced_rsync "$SETS_DIR/done-set-three_202501/PS1 Addon for 256gb SD Cards/Roms/" "$MOUNT_POINT/Roms/" "-a"
+        # Install emulator configurations
+        if [ -d "$SETS_DIR/done-set-three_202501/Sensible Console Arrangement" ]; then
+            print_step "Installing emulator configurations..."
+            if [ "$DEBUG_MODE" = true ]; then
+                print_info "This will merge with your existing Emu directory"
+                print_info "Existing files with the same name will be updated"
+                print_info "Other files in your Emu directory will not be touched"
+            fi
+            enhanced_rsync "$SETS_DIR/done-set-three_202501/Sensible Console Arrangement/Emu/" "$MOUNT_POINT/Emu/" "-a"
         else
-          echo -e "${RED}PS1 ROM directory not found${RESET}"
+            print_error "Emulator configuration directory not found"
         fi
-      fi
-      
-      # Install artwork based on choice
-      case "$BOXART_CHOICE" in
-        "Miyoo Mix (Recommended)")
-            if [ -d "$SETS_DIR/done-set-three_202501/Imgs (Miyoo Mix)" ]; then
-                print_step "Installing Miyoo Mix art..."
-                print_info "Skipping any existing box art files"
-                enhanced_rsync "$SETS_DIR/done-set-three_202501/Imgs (Miyoo Mix)/Roms/" "$MOUNT_POINT/Roms/" "-a"
+        
+        # Install base ROMs
+        if [ -d "$SETS_DIR/done-set-three_202501/Done Set 3/Roms" ]; then
+            print_step "Installing base ROM set..."
+            enhanced_rsync "$SETS_DIR/done-set-three_202501/Done Set 3/Roms/" "$MOUNT_POINT/Roms/" "-a"
+        else
+            print_error "Base ROM directory not found"
+        fi
+        
+        # Install PS1 games if selected
+        if [[ "$PS1_CHOICE" =~ ^[Yy]$ ]]; then
+            if [ -d "$SETS_DIR/done-set-three_202501/PS1 Addon for 256gb SD Cards/Roms" ]; then
+                print_step "Installing PS1 games..."
+                enhanced_rsync "$SETS_DIR/done-set-three_202501/PS1 Addon for 256gb SD Cards/Roms/" "$MOUNT_POINT/Roms/" "-a"
             else
-                print_error "Miyoo Mix art directory not found"
+                print_error "PS1 ROM directory not found"
             fi
-            ;;
-        "2D Box")
-            if [ -d "$SETS_DIR/done-set-three_202501/Imgs (2D Box)" ]; then
-                print_step "Installing 2D box art..."
-                print_info "Skipping any existing box art files"
-                enhanced_rsync "$SETS_DIR/done-set-three_202501/Imgs (2D Box)/Roms/" "$MOUNT_POINT/Roms/" "-a"
-            else
-                print_error "2D box art directory not found"
-            fi
-            ;;
-        "2D Box and Screenshot")
-            if [ -d "$SETS_DIR/done-set-three_202501/Imgs (2D Box and Screenshot)" ]; then
-                print_step "Installing 2D box art and screenshots..."
-                print_info "Skipping any existing box art files"
-                enhanced_rsync "$SETS_DIR/done-set-three_202501/Imgs (2D Box and Screenshot)/Roms/" "$MOUNT_POINT/Roms/" "-a"
-            else
-                print_error "2D box art and screenshots directory not found"
-            fi
-            ;;
-      esac
-      ;;
+        fi
+        
+        # Install artwork based on choice
+        case "$BOXART_CHOICE" in
+            "Miyoo Mix (Recommended)")
+                if [ -d "$SETS_DIR/done-set-three_202501/Imgs (Miyoo Mix)" ]; then
+                    print_step "Installing Miyoo Mix art..."
+                    print_info "Skipping any existing box art files"
+                    enhanced_rsync "$SETS_DIR/done-set-three_202501/Imgs (Miyoo Mix)/Roms/" "$MOUNT_POINT/Roms/" "-a"
+                else
+                    print_error "Miyoo Mix art directory not found"
+                fi
+                ;;
+            "2D Box")
+                if [ -d "$SETS_DIR/done-set-three_202501/Imgs (2D Box)" ]; then
+                    print_step "Installing 2D box art..."
+                    print_info "Skipping any existing box art files"
+                    enhanced_rsync "$SETS_DIR/done-set-three_202501/Imgs (2D Box)/Roms/" "$MOUNT_POINT/Roms/" "-a"
+                else
+                    print_error "2D box art directory not found"
+                fi
+                ;;
+            "2D Box and Screenshot")
+                if [ -d "$SETS_DIR/done-set-three_202501/Imgs (2D Box and Screenshot)" ]; then
+                    print_step "Installing 2D box art and screenshots..."
+                    print_info "Skipping any existing box art files"
+                    enhanced_rsync "$SETS_DIR/done-set-three_202501/Imgs (2D Box and Screenshot)/Roms/" "$MOUNT_POINT/Roms/" "-a"
+                else
+                    print_error "2D box art and screenshots directory not found"
+                fi
+                ;;
+        esac
+        ;;
   esac
 fi
 
-print_success "All steps complete!"
+# Replace the final success message with a colorful banner
+print_header "Installation Complete!"
+
+echo -e "${CYN}${BOLD}"
+cat << "EOF"
+ ██████╗  █████╗ ███╗   ███╗███████╗     ██████╗ ███╗   ██╗██╗
+██╔════╝ ██╔══██╗████╗ ████║██╔════╝    ██╔═══██╗████╗  ██║██║
+██║  ███╗███████║██╔████╔██║█████╗      ██║   ██║██╔██╗ ██║██║
+██║   ██║██╔══██║██║╚██╔╝██║██╔══╝      ██║   ██║██║╚██╗██║╚═╝
+╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗    ╚██████╔╝██║ ╚████║██╗
+ ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝     ╚═════╝ ╚═╝  ╚═══╝╚═╝
+Retro revival complete—press start to power up nostalgia!                                                                                                                                                                                                                                                                                                                 
+EOF
+echo -e "${RESET}"
+
+print_info "Please follow these steps:"
+echo -e "1. Remove the SD card and insert it into your Miyoo device"
+echo -e "2. Wait for the Onion installation to complete"
+echo -e "3. After the device restarts enjoy your games!"
 
 # Final unmount and eject
 if [ -n "$MOUNT_POINT" ]; then

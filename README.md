@@ -155,3 +155,9 @@ This script does not include any copyrighted BIOS files or ROMs. Users must prov
 ## 🤝 Contributing
 
 Feel free to submit issues and enhancement requests! 
+
+## External Links
+
+- [OnionOS](https://github.com/OnionUI/Onion)
+- [Done Set Three](https://archive.org/details/done-set-three_202501)
+- [Tiny Best Set GO](https://myrient.erista.me/files/Miscellaneous/Tiny%20Best%20Set%3A%20GO%21/)
