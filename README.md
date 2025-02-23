@@ -9,7 +9,9 @@ A bash script to automate the installation and setup of OnionOS, BIOS files, and
 - **BIOS files and ROM sets are NOT included** with this script for legal reasons
 - You must provide your own BIOS files and ROM sets
 - Place them in the appropriate directories as described below before running the script
+- ROM packs are completely optional - you can choose to install only OnionOS and add your own games later
 - The script will format your SD card if you choose a new installation - **ALL DATA WILL BE ERASED**
+
 
 ## 🗂️ Required Directory Structure
 
@@ -48,8 +50,8 @@ A bash script to automate the installation and setup of OnionOS, BIOS files, and
 - Safe SD card formatting with confirmation checks
 - Automatic download and installation of the latest OnionOS version
 - Installation of Easy Logo Tweak (automatically downloads latest version)
-- BIOS files installation
-- Multiple ROM set installation options:
+- BIOS files installation (optional)
+- Optional ROM set installation with multiple choices:
   1. Done Set Three
      - Model-specific configurations (Plus/V4)
      - Optional PS1 games
@@ -61,6 +63,7 @@ A bash script to automate the installation and setup of OnionOS, BIOS files, and
      - Main set only
      - Main + 64GB expansion
      - Main + 64GB + 128GB expansion
+  - Or choose to skip ROM installation entirely and add your own games later
 - Debug mode for detailed installation information (--debug flag)
 - Safe device mounting and unmounting
 - Progress indicators for all file operations
@@ -116,9 +119,9 @@ The script will guide you through the following steps:
 
 4. **Component Selection**
    - OnionOS (required for new installations)
-   - Easy Logo Tweak
-   - BIOS files
-   - ROM sets
+   - Easy Logo Tweak (optional)
+   - BIOS files (optional)
+   - ROM sets (optional - you can skip this and add your own games later)
 
 5. **ROM Set Configuration**
    - Choice of ROM set package
@@ -159,5 +162,7 @@ Feel free to submit issues and enhancement requests!
 ## External Links
 
 - [OnionOS](https://github.com/OnionUI/Onion)
+- [Easy Logo Tweak](https://github.com/schmurtzm/Miyoo-Mini-easy-logotweak)
 - [Done Set Three](https://archive.org/details/done-set-three_202501)
 - [Tiny Best Set GO](https://myrient.erista.me/files/Miscellaneous/Tiny%20Best%20Set%3A%20GO%21/)
+- [ROMS Mega Thread](https://r-roms.github.io/)
